@@ -4,7 +4,10 @@ import cv2
 import time
 import cStringIO
 import numpy as np
+import copy
 
+THREECM = 0
+SECOND_PER_DEGREE = 0
 pt1 = None
 pt2 = None
 pt3 = None
@@ -49,7 +52,19 @@ def streams():
 def process_image(image):
 	# Do something with the image
 	print(image.shape)
-	homography(image)
+	h_matrix = homography(image)
+	robopts = get_roboline_pts(image.shape, h_matrix)
+	yellowpts = threshough(image)
+	if lens(val) == 0:
+		#do 180 depending on how close to the orange I am
+	elif lens(val) == 1:
+		#turn a bit to try and find the yellow line
+	elif lens(val) == 2:
+		angle = get_angle(robopts, yellowpts)
+		offset = get_dist(robopts, yellowpts)
+		#if angle is not 0, turn so that angle is 0
+		#if angle is 0, offset is 0, go fwd
+		#if angle is 0, offset is not 0, turn towards line, go fwd, turn back
 	pass
 
 def homography(image):
@@ -67,8 +82,97 @@ def homography(image):
 	cv2.waitKey(6000)
 	cv2.destroyAllWindows()
 
+	return h
+
+def threshough(image):
+	image = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
+	image_clone = copy.deepcopy(image)
+	orange = cv2.inRange(image_clone, np.array([5, 50, 50]), np.array([15, 255, 255]))
+	orange_edges= cv2.Canny(orange, 100, 200)
+	if len(orange_edges) != 0:
+		return []
+	image = cv2.inRange(image, np.array([90, 100, 100]), np.array([110, 255, 255]))
+	edges = cv2.Canny(image, 100, 200)
+	if len(edges) == 0:
+		return [0]
+	lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
+
+	pts = []
+	for line in lines:
+		rho = line[0][0]
+		theta = line[0][1]
+		a = np.cos(theta)
+		b = np.sin(theta)
+		x0 = a*rho
+		y0 = b*rho
+		x1 = int(x0 + 1000*(-b))
+		y1 = int(y0 + 1000*(a))
+		x2 = int(x0 - 1000*(-b))
+		y2 = int(y0 - 1000*(a))
+		pts.append((x1, y1))
+		pts.append((x2, y2))
+		print((x1, y1), (x2, y2))
+	midx1 = (pts[0][0] + pts[2][0])/2
+	midy1 = (pts[0][1] + pts[2][1])/2
+	midx2 = (pts[1][0] + pts[3][0])/2
+	midy2 = (pts[1][1] + pts[3][1])/2
+	return [(midx1,midy1), (midx2,midy2)]
+
+def get_center_pts(shape, transform):
+	midx = shape[1]/2
+	endy = shape[0]
+
+	#from lab instructions on transforming single points
+	source_pt1 = np.array([midx,0,1])
+	road_pt1 = transform.dot(source_pt1)
+	road_pt1x = int(road_pt1[0]/road_pt1[2])
+	road_pt1y = int(road_pt1[1]/road_pt1[2])
+
+	source_pt2 = np.array([midx,endy,1])
+	road_pt2 = transform.dot(source_pt2)
+	road_pt2x = int(road_pt2[0]/road_pt2[2])
+	road_pt2y = int(road_pt2[1]/road_pt2[2])
+
+def get_dist(a, b):
+	b1 = b[0]
+	b2 = b[1]
+	b_slope = float((b2[1]-b1[1])/(b2[0]-b1[0]))
+	b_yintercept = b1[1] - b_slope*b1[0]
+	y = a[0][1]
+	x = y*b_slope + b_yintercept
+
+	dist = sqrt((a[0][0]-x)**2 + (y-y)**2)
+	return dist
+
+def get_angle(a, b):
+	a1 = a[0]
+	a2 = a[1]
+	b1 = b[0]
+	b2 = b[1]
+	a_slope = float((a2[1]-a1[1])/(a2[0]-a1[0]))
+	b_slope = float((b2[1]-b1[1])/(b2[0]-b1[0]))
+	angle = atan(float((a_slope-b_slope)/(1+a_slope*b_slope)))
+	return angle
+
+# def move_fwd():
+# 	fwd()
+# 	time.sleep(THREECM)
+# 	stop()
+# 	time.sleep(.2)
+# def move_right(deg):
+# 	right_rot()
+# 	time.sleep(SECOND_PER_DEGREE*deg)
+# 	stop()
+# 	time.sleep(.2)
+# def move_left(deg):
+# 	left_rot()
+# 	time.sleep(SECOND_PER_DEGREE*deg)
+# 	stop()
+# 	time.sleep(.2)
 
 def main():
+	set_speed(100)
+
 	image_width = 400
 	image_height = 600
 
