@@ -71,6 +71,7 @@ def homography(image):
 	im_src = image
 	pts_dst = np.array([(0,0),(1000,0),(1000,600),(0,600)])
 
+	
 	#calculate homography, warp source image to destination based on homography
 	h, status = cv2.findHomography(pts_src, pts_dst)
 	im_out = cv2.warpPerspective(im_src, h, (1000,600))
@@ -195,7 +196,6 @@ def main():
 		print "passed waitkey"
 		cv2.destroyAllWindows()
 		print pts_src
-		homography(image)
 
 	# with picamera.PiCamera() as camera:
 	# 	# Set resolution of camera and the framerate
