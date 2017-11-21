@@ -56,16 +56,16 @@ def process_image(image):
 	h_matrix = homography(image)
 	robopts = get_roboline_pts(image.shape, h_matrix)
 	yellowpts = threshough(image)
-	if lens(val) == 0:
+	if lens(yellowpts) == 0:
 		if dist<distance_to_stop:
 			stop()
 			time.sleep(0.2)
 			left_rot(180)
 			time.sleep(0.2)
 		#do 180 depending on how close to the orange I am
-	elif lens(val) == 1:
+	elif lens(yellowpts) == 1:
 		#turn a bit to try and find the yellow line
-	elif lens(val) == 2:
+	elif lens(yellowpts) == 2:
 		angle = get_angle(robopts, yellowpts)
 		offset = get_dist(robopts, yellowpts)
 		if angle != 0:
