@@ -1,14 +1,16 @@
-#import gopigo
-#import picamera
+import gopigo
+import picamera
 import cv2
 import time
 import cStringIO
 import numpy as np
 import copy
+import math
 from gopigo import *
 
-THREECM = 0
-SECOND_PER_DEGREE = 0
+SECOND_PER_CM = 7.51/100
+SECOND_PER_DEGREE = 4.21/360
+STOPPING_DISTANCE = 5
 pt1 = None
 pt2 = None
 pt3 = None
@@ -56,49 +58,52 @@ def process_image(image):
 	h_matrix = homography(image)
 	robopts = get_roboline_pts(image.shape, h_matrix)
 	yellowpts = threshough(image)
-	if lens(yellowpts) == 0:
-		if dist<distance_to_stop:
-			stop()
-			time.sleep(0.2)
-			left_rot(180)
-			time.sleep(0.2)
+	if lens(yellowpts) == 1:
 		#do 180 depending on how close to the orange I am
-	elif lens(yellowpts) == 1:
-		#turn a bit to try and find the yellow line
+		if yellowpts[0] < STOPPING_DISTANCE:
+			move_left(180)
+	elif lens(yellowpts) == 0:
+		#no yellow is seen, turn to see if you can find it
+		move_left(30)
 	elif lens(yellowpts) == 2:
 		angle = get_angle(robopts, yellowpts)
-		offset = get_dist(robopts, yellowpts)
-		if angle != 0:
-			move_left()
-		else:
-			if offset == 0:
-				move_fwd()
-			else:
-				move_left()
-				move_fwd()
-				backward += 1
-				dist = right_rot_stop()
-				stop()
-				time.sleep(1)
+		offset, pos = get_dist(robopts, yellowpts)
+
 		#if angle is not 0, turn so that angle is 0
-		#if angle is 0, offset is 0, go fwd
-		#if angle is 0, offset is not 0, turn towards line, go fwd, turn back
+		if angle > 3:
+			move_left(angle)
+		elif angle < -3:
+			move_right(angle)
+		else:
+			#if angle is 0, offset is 0, go fwd
+			#if angle is 0, offset is not 0, turn towards line, go fwd, turn back
+				if offset < 20:
+					move_fwd(3)
+			else:
+				if pos == "left":
+					move_right(90)
+					move_fwd(offset/20)		#going with 100px = 5cm
+					move_left(90)
+				elif pos == "right":
+					move_left(90)
+					move_fwd(offset/20)		#going with 100px = 5cm
+					move_right(90)
 	pass
 
 def homography(image):
 	im_src = image
-	pts_dst = np.array([(0,0),(1000,0),(1000,600),(0,600)])
+	pts_dst = np.array([(0,0),(400,0),(400,200),(0,200)])
 
 	
 	#calculate homography, warp source image to destination based on homography
 	h, status = cv2.findHomography(pts_src, pts_dst)
-	im_out = cv2.warpPerspective(im_src, h, (1000,600))
+	im_out = cv2.warpPerspective(im_src, h, (400,200))
 	 
 	# Display images
 	cv2.imshow("Source Image", im_src)
 	cv2.imshow("Warped Source Image", im_out)
  
-	cv2.waitKey(6000)
+	cv2.waitKey(2000)
 	cv2.destroyAllWindows()
 
 	return h
@@ -109,11 +114,12 @@ def threshough(image):
 	orange = cv2.inRange(image_clone, np.array([5, 50, 50]), np.array([15, 255, 255]))
 	orange_edges= cv2.Canny(orange, 100, 200)
 	if len(orange_edges) != 0:
-		return []
+		#calculate distance to orange edge
+		return [distance]
 	image = cv2.inRange(image, np.array([90, 100, 100]), np.array([110, 255, 255]))
 	edges = cv2.Canny(image, 100, 200)
 	if len(edges) == 0:
-		return [0]
+		return []
 	lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
 
 	pts = []
@@ -124,10 +130,10 @@ def threshough(image):
 		b = np.sin(theta)
 		x0 = a*rho
 		y0 = b*rho
-		x1 = int(x0 + 1000*(-b))
-		y1 = int(y0 + 1000*(a))
-		x2 = int(x0 - 1000*(-b))
-		y2 = int(y0 - 1000*(a))
+		x1 = int(x0 + 400*(-b))
+		y1 = int(y0 + 400*(a))
+		x2 = int(x0 - 400*(-b))
+		y2 = int(y0 - 400*(a))
 		pts.append((x1, y1))
 		pts.append((x2, y2))
 		print((x1, y1), (x2, y2))
@@ -159,9 +165,15 @@ def get_dist(a, b):
 	b_yintercept = b1[1] - b_slope*b1[0]
 	y = a[0][1]
 	x = y*b_slope + b_yintercept
+	l_or_r = ""
+	if x > a[0][0]:
+		#yellowpts' x is greater than robopts' x -> robo is to the left of the yellow line
+		l_or_r = "left"
+	else:
+		l_or_r = "right"
 
 	dist = sqrt((a[0][0]-x)**2 + (y-y)**2)
-	return dist
+	return dist, l_or_r
 
 def get_angle(a, b):
 	a1 = a[0]
@@ -170,50 +182,53 @@ def get_angle(a, b):
 	b2 = b[1]
 	a_slope = float((a2[1]-a1[1])/(a2[0]-a1[0]))
 	b_slope = float((b2[1]-b1[1])/(b2[0]-b1[0]))
-	angle = atan(float((a_slope-b_slope)/(1+a_slope*b_slope)))
+	angle = degree(atan(float((a_slope-b_slope)/(1+a_slope*b_slope))))
 	return angle
 
-# def move_fwd():
-# 	fwd()
-# 	time.sleep(THREECM)
-# 	stop()
-# 	time.sleep(.2)
-# def move_right(deg):
-# 	right_rot()
-# 	time.sleep(SECOND_PER_DEGREE*deg)
-# 	stop()
-# 	time.sleep(.2)
-# def move_left(deg):
-# 	left_rot()
-# 	time.sleep(SECOND_PER_DEGREE*deg)
-# 	stop()
-# 	time.sleep(.2)
+def move_fwd(cm):
+	fwd()
+	time.sleep(SECOND_PER_CM*cm)
+	stop()
+	time.sleep(.2)
+def move_right(deg):
+	right_rot()
+	time.sleep(SECOND_PER_DEGREE*deg)
+	stop()
+	time.sleep(.2)
+def move_left(deg):
+	left_rot()
+	time.sleep(SECOND_PER_DEGREE*deg)
+	stop()
+	time.sleep(.2)
 
 def main():
-	set_speed(100)
-
 	image_width = 400
-	image_height = 600
+	image_height = 200
 
-  #   with picamera.PiCamera() as camera:
-  #	   camera.resolution = (image_width, image_height)
-		# time.sleep(3)
-		# camera.capture('destination.jpg')
-		# im_dst = cv2.imread('destination.jpg')
-		# camera.capture('source.jpg')
-		# im_src = cv2.imread('source.jpg')
+    with picamera.PiCamera() as camera:
+  	   camera.resolution = (image_width, image_height)
+		time.sleep(3)
+		camera.capture('source.jpg')
+		image = cv2.imread('source.jpg')
 
-	if True:
-		image = cv2.imread('bluethumbtacks.png')	
+	#if True:
+	#	image = cv2.imread('bluethumbtacks.png')	
 		#let user select region
 		cv2.namedWindow('clickme4x')
 		cv2.setMouseCallback('clickme4x', point_collection)
 		cv2.imshow('clickme4x', image)
 		print "passed imshow"
-		cv2.waitKey(6000)
+		cv2.waitKey(2000)
 		print "passed waitkey"
 		cv2.destroyAllWindows()
 		print pts_src
+		h_matrix = homograph(image)
+
+		camera.capture('source.jpg')
+		image = cv2.imread('source.jpg')
+		process_image(image)
+
+
 
 	# with picamera.PiCamera() as camera:
 	# 	# Set resolution of camera and the framerate
