@@ -1,12 +1,14 @@
-import gopigo
-import picamera
-import cv2
+# from gopigo import *
+# import picamera
 import time
-import cStringIO
+import cv2
 import numpy as np
 import copy
 import math
-from gopigo import *
+
+import cStringIO
+
+
 
 SECOND_PER_CM = 7.51/100
 SECOND_PER_DEGREE = 4.21/360
@@ -57,15 +59,23 @@ def process_image(image):
 	print(image.shape)
 	h_matrix = homography(image)
 	robopts = get_roboline_pts(image.shape, h_matrix)
+	#image_clone = copy.deepcopy(image)
+	#cv2.line(image_clone,(road_pt1x,road_pt1y),(road_pt2x,road_pt2y),(255,0,0),2)
 	yellowpts = threshough(image)
-	if lens(yellowpts) == 1:
+
+	cv2.line(image,(robopts[0][0],robopts[0][1]),(robopts[1][0],robopts[1][1]),(255,0,0),2)
+	cv2.imshow("Source Image", image)
+	cv2.waitKey(2000)
+	cv2.destroyAllWindows()
+
+	if len(yellowpts) == 1:
 		#do 180 depending on how close to the orange I am
 		if yellowpts[0] < STOPPING_DISTANCE:
 			move_left(180)
-	elif lens(yellowpts) == 0:
+	elif len(yellowpts) == 0:
 		#no yellow is seen, turn to see if you can find it
 		move_left(30)
-	elif lens(yellowpts) == 2:
+	elif len(yellowpts) == 2:
 		angle = get_angle(robopts, yellowpts)
 		offset, pos = get_dist(robopts, yellowpts)
 
@@ -77,8 +87,8 @@ def process_image(image):
 		else:
 			#if angle is 0, offset is 0, go fwd
 			#if angle is 0, offset is not 0, turn towards line, go fwd, turn back
-				if offset < 20:
-					move_fwd(3)
+			if offset < 20:
+				move_fwd(3)
 			else:
 				if pos == "left":
 					move_right(90)
@@ -92,17 +102,16 @@ def process_image(image):
 
 def homography(image):
 	im_src = image
-	pts_dst = np.array([(0,0),(400,0),(400,200),(0,200)])
+	pts_dst = np.array([(0,0),(600,0),(600,400),(0,400)])
 
 	
 	#calculate homography, warp source image to destination based on homography
 	h, status = cv2.findHomography(pts_src, pts_dst)
-	im_out = cv2.warpPerspective(im_src, h, (400,200))
-	 
+	im_out = cv2.warpPerspective(im_src, h, (600,400))
+
 	# Display images
 	cv2.imshow("Source Image", im_src)
 	cv2.imshow("Warped Source Image", im_out)
- 
 	cv2.waitKey(2000)
 	cv2.destroyAllWindows()
 
@@ -115,10 +124,12 @@ def threshough(image):
 	orange_edges= cv2.Canny(orange, 100, 200)
 	if len(orange_edges) != 0:
 		#calculate distance to orange edge
-		return [distance]
+		print "orange seen!"
+		#return [0]
 	image = cv2.inRange(image, np.array([90, 100, 100]), np.array([110, 255, 255]))
 	edges = cv2.Canny(image, 100, 200)
 	if len(edges) == 0:
+		print "no yellow seen"
 		return []
 	lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
 
@@ -141,9 +152,16 @@ def threshough(image):
 	midy1 = (pts[0][1] + pts[2][1])/2
 	midx2 = (pts[1][0] + pts[3][0])/2
 	midy2 = (pts[1][1] + pts[3][1])/2
+
+	# Display middle of yellow lines line for testing/proof
+	print midx1, midy1, midx2, midy2
+	cv2.line(image,(midx1,midy1),(midx2,midy2),(0,0,255),2)
+	cv2.imshow("Source Image", image)
+	cv2.waitKey(2000)
+	cv2.destroyAllWindows()
 	return [(midx1,midy1), (midx2,midy2)]
 
-def get_center_pts(shape, transform):
+def get_roboline_pts(shape, transform):
 	midx = shape[1]/2
 	endy = shape[0]
 
@@ -157,6 +175,8 @@ def get_center_pts(shape, transform):
 	road_pt2 = transform.dot(source_pt2)
 	road_pt2x = int(road_pt2[0]/road_pt2[2])
 	road_pt2y = int(road_pt2[1]/road_pt2[2])
+
+	return [(road_pt1x,road_pt1y), (road_pt2x,road_pt2y)]
 
 def get_dist(a, b):
 	b1 = b[0]
@@ -202,30 +222,31 @@ def move_left(deg):
 	time.sleep(.2)
 
 def main():
+	#servo(83)
 	image_width = 400
 	image_height = 200
 
-    with picamera.PiCamera() as camera:
-  	   camera.resolution = (image_width, image_height)
-		time.sleep(3)
-		camera.capture('source.jpg')
-		image = cv2.imread('source.jpg')
+	# with picamera.PiCamera() as camera:
+	# 	camera.resolution = (image_width, image_height)
+	# 	time.sleep(3)
+	# 	camera.capture('source.jpg')
+	# 	image = cv2.imread('source.jpg')
 
-	#if True:
-	#	image = cv2.imread('bluethumbtacks.png')	
+	if True:
+		image = cv2.imread('bluethumbtacks.png')	
 		#let user select region
 		cv2.namedWindow('clickme4x')
 		cv2.setMouseCallback('clickme4x', point_collection)
 		cv2.imshow('clickme4x', image)
 		print "passed imshow"
-		cv2.waitKey(2000)
+		cv2.waitKey(6000)
 		print "passed waitkey"
 		cv2.destroyAllWindows()
 		print pts_src
-		h_matrix = homograph(image)
+		# h_matrix = homography(image)
 
-		camera.capture('source.jpg')
-		image = cv2.imread('source.jpg')
+		# camera.capture('source.jpg')
+		# image = cv2.imread('source.jpg')
 		process_image(image)
 
 
