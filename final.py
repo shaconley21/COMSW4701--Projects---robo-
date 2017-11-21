@@ -4,7 +4,7 @@ import time
 import cv2
 import numpy as np
 import copy
-import math
+from math import *
 
 import cStringIO
 
@@ -57,14 +57,14 @@ def streams():
 def process_image(image):
 	# Do something with the image
 	print(image.shape)
-	h_matrix = homography(image)
-	robopts = get_roboline_pts(image.shape, h_matrix)
+	h_matrix, im_out = homography(image)
+	robopts = get_roboline_pts(im_out.shape, h_matrix)
 	#image_clone = copy.deepcopy(image)
 	#cv2.line(image_clone,(road_pt1x,road_pt1y),(road_pt2x,road_pt2y),(255,0,0),2)
-	yellowpts = threshough(image)
+	yellowpts = threshough(im_out)
 
-	cv2.line(image,(robopts[0][0],robopts[0][1]),(robopts[1][0],robopts[1][1]),(255,0,0),2)
-	cv2.imshow("Source Image", image)
+	cv2.line(im_out,(robopts[0][0],robopts[0][1]),(robopts[1][0],robopts[1][1]),(255,0,0),2)
+	cv2.imshow("Source Image", im_out)
 	cv2.waitKey(2000)
 	cv2.destroyAllWindows()
 
@@ -101,6 +101,7 @@ def process_image(image):
 	pass
 
 def homography(image):
+	global pts_src
 	im_src = image
 	pts_dst = np.array([(0,0),(600,0),(600,400),(0,400)])
 
@@ -114,8 +115,8 @@ def homography(image):
 	cv2.imshow("Warped Source Image", im_out)
 	cv2.waitKey(2000)
 	cv2.destroyAllWindows()
-
-	return h
+	print (h)
+	return h, im_out
 
 def threshough(image):
 	image = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
@@ -155,7 +156,7 @@ def threshough(image):
 
 	# Display middle of yellow lines line for testing/proof
 	print midx1, midy1, midx2, midy2
-	cv2.line(image,(midx1,midy1),(midx2,midy2),(0,0,255),2)
+	cv2.line(image,(midx1,midy1),(midx2,midy2),(0,100,255),2)
 	cv2.imshow("Source Image", image)
 	cv2.waitKey(2000)
 	cv2.destroyAllWindows()
@@ -193,6 +194,7 @@ def get_dist(a, b):
 		l_or_r = "right"
 
 	dist = sqrt((a[0][0]-x)**2 + (y-y)**2)
+	print (distance)
 	return dist, l_or_r
 
 def get_angle(a, b):
@@ -202,7 +204,8 @@ def get_angle(a, b):
 	b2 = b[1]
 	a_slope = float((a2[1]-a1[1])/(a2[0]-a1[0]))
 	b_slope = float((b2[1]-b1[1])/(b2[0]-b1[0]))
-	angle = degree(atan(float((a_slope-b_slope)/(1+a_slope*b_slope))))
+	angle = degrees(atan(float((a_slope-b_slope)/(1+a_slope*b_slope))))
+	print (angle)
 	return angle
 
 def move_fwd(cm):
