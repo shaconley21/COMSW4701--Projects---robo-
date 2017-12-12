@@ -10,6 +10,51 @@ X, Y = 600, 600
 WINDOW = [X, Y]
 EPSILON = 7.0
 RADIUS = 7
+NUM_NODES = 3000 
+
+
+class Node:
+    x = 0
+    y = 0  
+    parent = None
+    cost = 0 
+    def __init__(self,xcoord, ycoord):
+         self.x = xcoord
+         self.y = ycoord
+
+# need to make a fuction to check intersection that takes three arguments 
+
+def reconnect(nodes,newnode,pygame,screen):
+        white = 255, 240, 200
+        black = 20, 20, 40
+        for i in range(len(nodes)):
+           p = nodes[i]
+           # if check intersection for p,newnode,OBS and p!=newnode.parent and dist([p.x,p.y],[newnode.x,newnode.y]) <RADIUS and newnode.cost+dist([p.x,p.y],[newnode.x,newnode.y]) < p.cost:
+              pygame.draw.line(screen,white,[p.x,p.y],[p.parent.x,p.parent.y])  
+              p.parent = newnode
+              p.cost=newnode.cost+dist([p.x,p.y],[newnode.x,newnode.y]) 
+              nodes[i]=p  
+              pygame.draw.line(screen,black,[p.x,p.y],[newnode.x,newnode.y])                    
+        return nodes
+
+def drawSolutionPath(start,goal,nodes,pygame,screen):
+    pink = 200, 20, 240
+    nn = nodes[0]
+    for p in nodes:
+       if dist([p.x,p.y],[goal.x,goal.y]) < dist([nn.x,nn.y],[goal.x,goal.y]):
+          nn = p
+    while nn!=start:
+        pygame.draw.line(screen,pink,[nn.x,nn.y],[nn.parent.x,nn.parent.y],5)  
+        nn=nn.parent
+
+
+def select_Parent(nn,newnode,nodes):
+        for p in nodes:
+         if #check the intersection of p, newnode, and obstacle and dist([p.x,p.y],[newnode.x,newnode.y]) <RADIUS and p.cost+dist([p.x,p.y],[newnode.x,newnode.y]) < nn.cost+dist([nn.x,nn.y],[newnode.x,newnode.y]):
+          nn = p
+        newnode.cost=nn.cost+dist([nn.x,nn.y],[newnode.x,newnode.y])
+        newnode.parent=nn
+        return newnode,nn
 
 # add obstacles to the screen | return list of obstacles
 def obstacle_crtr(filename, screen):
@@ -81,9 +126,24 @@ def main():
 
     nodes = []
     nodes.append(start)
-
+    start = node[0]
+    goal = Node(600, 480)
+    for i in range(NUM_NODES):
+        rand = get_random_pt()
+        nn = nodes[0]
+        for p in nodes:
+            if dist([p.x,p.y],[rand.x,rand.y]) < dist([nn.x,nn.y],[rand.x,rand.y]):
+                nn = p
+        
+        interpolated_node = step_from_to([nn.x,nn.y],[rand.x,rand.y]
+        newnode = Node(interpolatedNode[0],interpolatedNode[1])
+        # add some condition checking the intersection between nn, rand, and obstacle 
+            [newnode,nn]=select_Parent(nn,newnode,nodes);
+            nodes.append(newnode)
+    pygame.draw.line(screen,black,[nn.x,nn.y],[newnode.x,newnode.y])
+    nodes=reconnect(nodes,newnode,pygame,screen)
     pygame.display.update()
-    
+
     while not done:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
