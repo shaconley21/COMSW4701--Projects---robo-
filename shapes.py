@@ -107,11 +107,10 @@ def find_near_neighbor(pt, screen):
 
 def step_to(pt, node, screen):
 	longls = LineString([(node.x, node.y),(pt.x, pt.y)])
-	ipt = longls.interpolate(15)
+	ipt = longls.interpolate(30)
 	ls = LineString([(ipt.x, ipt.y),(node.x, node.y)])
-	if collide_ln(ls) == False and lines_cross(ls,ipt,node,screen) == False:
+	if collide_ln(ls) == False and lines_cross(ls,ipt,node,screen) == False and ls.length > 20:
 		circle(screen, YELLOW, [int(ipt.x), int(ipt.y)], 3, 0)
-		print "collide_ln:", collide_ln(ls), "lines_cross:", lines_cross(ls,ipt,node,screen)
 		return ls, ipt, True
 	else:
 		return ls, ipt, False	
@@ -145,9 +144,9 @@ def main():
 		pygame.display.update()
 
 		#checks if point is close enough to goal
-		if dist(pt, Point(goal[0], goal[1])) < 7:
+		if dist(ipt, Point(goal[0], goal[1])) < 10:
 			#probably need to append node here
-			line(screen,RED,goal,listpt)
+			line(screen,RED,goal,[ipt.x,ipt.y])
 			print "goal reached"
 			break
 
