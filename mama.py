@@ -4,17 +4,32 @@ from pygame.draw import *
 from math import sqrt,cos,sin,atan2
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
+from shapely.geometry.linestring import LineString
 import random
 
-X, Y = 600, 600
-WINDOW = [X, Y]
-EPSILON = 7.0
+XDIM, YDIM = 600, 600
+WINDOW = [XDIM, YDIM]
+EPSILON = 10.0
 RADIUS = 7
+POLY_LIST = []
+NODES = []
+
+WHITE = (255, 255, 255)
+YELLOW = (255, 215, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+
+class Node:
+    x = 0
+    y = 0  
+    parent = None
+    cost = 0 
+    def __init__(self,xcoord, ycoord):
+        self.x = xcoord
+        self.y = ycoord
 
 # add obstacles to the screen | return list of obstacles
 def obstacle_crtr(filename, screen):
-    yellow = (255, 215, 0)
-    poly_list = []
     with open(filename, "r") as obstacles:
         for line in obstacles:
             x = line.split(" ")
@@ -24,24 +39,21 @@ def obstacle_crtr(filename, screen):
                 cntr = 0
             else:
                 points.append((int(x[0]), int(x[1])))
-                poly_list.append(Polygon(points))
+                POLY_LIST.append(points)
                 cntr += 1
                 if cntr == n_corners:
-                    polygon(screen, yellow, points, 1)
-    return poly_list
+                    polygon(screen, YELLOW, points, 1)
 
 # add start, goal to screen | return start, goal values
 def start_goal(filename, screen):
-    green = (0, 255, 0)
-    red = (255, 0, 0)
     with open(filename, "r") as sg:
         s = sg.readline()
         start = (int(s[0]), int(s[1]))
-        circle(screen, green, start, 3, 0)
+        circle(screen, GREEN, start, 3, 0)
 
         g = sg.readline()
         goal = (int(g[0]), int(g[1]))
-        circle(screen, green, start, 3, 0)
+        circle(screen, GREEN, start, 3, 0)
 
         return start, goal
 
@@ -50,25 +62,41 @@ def dist(pt1,pt2):
     return sqrt((pt1[0]-pt2[0])*(pt1[0]-pt2[0])+(pt1[1]-pt2[1])*(pt1[1]-pt2[1]))
 
 #"Change up" - Beyonce
-def step_from_to(p1,p2):
-    if dist(p1,p2) < EPSILON:
-        return p2
-    else:
-        theta = atan2(p2[1]-p1[1],p2[0]-p1[0])
-        return p1[0] + EPSILON*cos(theta), p1[1] + EPSILON*sin(theta)
+# def step_from_to(p1,p2):
+#     if dist(p1,p2) < EPSILON:
+#         return p2
+#     else:
+#         theta = atan2(p2[1]-p1[1],p2[0]-p1[0])
+#         return p1[0] + EPSILON*cos(theta), p1[1] + EPSILON*sin(theta)
 
 def get_random_pt():
     while True:
-        p = random.random()*X, random.random()*Y
+        a = int(random.random()*XDIM)
+        b = int(random.random()*YDIM)
+        p = Point(a,b)
         if collisions(p) == False:
-            return p      
-          
-def collisions(poly_list, point):
-    pt = Point(point[0], point[1])
-    for poly in poly_list:
-        if poly.contains(pt):
+            return [a,b]   
+  
+def collisions(obj):
+    for poly in POLY_LIST:
+        polygoly = Polygon([list(elem) for elem in poly])
+        if polygoly.intersects(obj):
             return True
     return False 
+
+def find_near_neighbor():
+    done = False
+    while not done:
+        point = get_random_pt()
+        new_pt = Point(point[0], point[1])
+        if collisions(new_pt) == False:
+            nn = NODES[0]
+            for p in NODES:
+                print "dist", dist([p.x,p.y],point)
+                if dist([p.x,p.y],point) < EPSILON:
+                    line = LineString([(p.x,p.y), (point[0],point[1])])
+                    if collisions(line) == False:
+                        return nn
 
 def main():
     #initialize and prepare screen
@@ -76,28 +104,39 @@ def main():
     screen = pygame.display.set_mode(WINDOW)
     pygame.display.set_caption('HOMEWORK 5')
 
-    poly_list = obstacle_crtr("world_obstacles.txt", screen)
+    POLY_LIST = obstacle_crtr("world_obstacles.txt", screen)
     start, goal = start_goal("start_goal.txt", screen)
 
-    nodes = []
-    nodes.append(start)
+    NODES.append(Node(start[0], start[1]))
 
     pygame.display.update()
     
-    while not done:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                done = True
-        '''
-        newnode = step_from_to
-        nodes.append(newnode)
-        line(screen, white, node, newnode, )
+    done = False
+    
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            done = True
 
-        if dist(newnode, goal) < EPSILON:
-            print "goal reached"
-                    break
-        '''
-        pygame.display.update()
+    
+    near = find_near_neighbor()
+    node = Node(point[0], point[1])
+    node.parent = near
+    NODES.append(node)
+    circle(screen, GREEN, point, 3, 0)
+    line(screen,WHITE,[near.x,near.y],point)
+    pygame.display.update()
+    while not done:
+        pass
+        # '''
+        # newnode = step_from_to
+        # NODES.append(newnode)
+        # line(screen, WHITE, node, newnode, )
+
+        # if dist(newnode, goal) < EPSILON:
+        #     print "goal reached"
+        #             break
+        # '''
+    #pygame.display.update()
 
 if __name__ == '__main__':
     main()
