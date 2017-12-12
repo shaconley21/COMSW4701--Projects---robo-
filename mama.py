@@ -9,7 +9,7 @@ import random
 
 XDIM, YDIM = 600, 600
 WINDOW = [XDIM, YDIM]
-EPSILON = 10.0
+EPSILON = 7.0
 RADIUS = 7
 POLY_LIST = []
 NODES = []
@@ -84,19 +84,15 @@ def collisions(obj):
             return True
     return False 
 
-def find_near_neighbor():
-    done = False
-    while not done:
-        point = get_random_pt()
-        new_pt = Point(point[0], point[1])
-        if collisions(new_pt) == False:
-            nn = NODES[0]
-            for p in NODES:
-                print "dist", dist([p.x,p.y],point)
-                if dist([p.x,p.y],point) < EPSILON:
-                    line = LineString([(p.x,p.y), (point[0],point[1])])
-                    if collisions(line) == False:
-                        return nn
+def find_near_neighbor(rand):
+    nn = NODES[0]
+    for p in NODES:
+        if dist([p.x,p.y],[rand.x,rand.y]) < dist([nn.x,nn.y],[rand.x,rand.y]) and \
+            dist([p.x,p.y],[rand.x,rand.y]) > EPSILON:
+            line = LineString([(p.x,p.y), (rand.x,rand.y)])
+            if collisions(line) == False:
+                nn = p
+    return nn
 
 def main():
     #initialize and prepare screen
@@ -112,21 +108,25 @@ def main():
     pygame.display.update()
     
     done = False
-    
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            done = True
-
-    
-    near = find_near_neighbor()
-    node = Node(point[0], point[1])
-    node.parent = near
-    NODES.append(node)
-    circle(screen, GREEN, point, 3, 0)
-    line(screen,WHITE,[near.x,near.y],point)
-    pygame.display.update()
     while not done:
-        pass
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                done = True
+
+        point = get_random_pt()
+        new_node = Point(point[0], point[1])
+        collides = collisions(new_node)
+        if collides == False:
+            near = find_near_neighbor(new_node)
+            node = Node(point[0], point[1])
+            node.parent = near
+            NODES.append(node)
+            circle(screen, GREEN, point, 3, 0)
+            line(screen,WHITE,[near.x,near.y],point)
+            pygame.display.update()
+        else:
+            print "collided"
+        
         # '''
         # newnode = step_from_to
         # NODES.append(newnode)
