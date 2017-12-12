@@ -74,15 +74,44 @@ def get_random_pt():
         a = int(random.random()*XDIM)
         b = int(random.random()*YDIM)
         p = Point(a,b)
-        if collisions(p) == False:
+        if collides(p) == False:
             return [a,b]   
   
-def collisions(obj):
+def collides(obj):
     for poly in POLY_LIST:
         polygoly = Polygon([list(elem) for elem in poly])
         if polygoly.intersects(obj):
             return True
-    return False 
+        inters = polygoly.exterior.intersection(obj)
+        print inters
+        if not inters.is_empty:
+            return True
+    return False
+
+# def collides(obj, t):
+#     if t == 'point':
+#         for poly in POLY_LIST:
+#             polygoly = Polygon([list(elem) for elem in poly])
+#             if polygoly.intersects(obj) or polygoly.contains(obj):
+#                 print "collided"
+#                 return True
+#     if t == 'line':
+#         print "in line"
+#     #use LineString.interpolate(0.1, normalized=True) to generate points on that line at specific intervals
+#     #and then check if these points are in the file
+#         fraction = 0.05
+#         i = 1
+#         pts_list = []
+#         while fraction < 1:
+#             pts_list.append(obj.interpolate(fraction*i, normalized=True))
+#             for poly in POLY_LIST:
+#                 polygoly = Polygon([list(elem) for elem in poly])
+#                 for x in pts_list:
+#                     if polygoly.contains(x):
+#                         return True
+#             fraction = fraction*i
+#             i += 1
+#     return False
 
 def find_near_neighbor(rand):
     nn = NODES[0]
@@ -90,7 +119,7 @@ def find_near_neighbor(rand):
         if dist([p.x,p.y],[rand.x,rand.y]) < dist([nn.x,nn.y],[rand.x,rand.y]) and \
             dist([p.x,p.y],[rand.x,rand.y]) > EPSILON:
             line = LineString([(p.x,p.y), (rand.x,rand.y)])
-            if collisions(line) == False:
+            if collides(line) == False:
                 nn = p
     return nn
 
@@ -108,6 +137,7 @@ def main():
     pygame.display.update()
     
     done = False
+    #for i in range(0, 5):
     while not done:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -115,8 +145,7 @@ def main():
 
         point = get_random_pt()
         new_node = Point(point[0], point[1])
-        collides = collisions(new_node)
-        if collides == False:
+        if collides(new_node) == False:
             near = find_near_neighbor(new_node)
             node = Node(point[0], point[1])
             node.parent = near
@@ -126,6 +155,9 @@ def main():
             pygame.display.update()
         else:
             print "collided"
+
+    
+        pass
         
         # '''
         # newnode = step_from_to
